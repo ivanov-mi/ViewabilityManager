@@ -24,6 +24,7 @@ class ViewabilityManager: ViewabilityManaging {
     private var timer: Timer?
     private let visibilityRatioThreshold: CGFloat
     private let durationThreshold: TimeInterval
+    private let detectionInterval: Double
     
     func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
         addTrackedItem(for: view, onSuccess: onSuccess)
@@ -36,9 +37,14 @@ class ViewabilityManager: ViewabilityManaging {
     }
     
     init(visibilityRatioThreshold: CGFloat = 0.5,
-         durationThreshold: TimeInterval = 1.0) {
+         durationThreshold: TimeInterval = 10.0,
+         detectionInterval: Double? = nil) {
         self.visibilityRatioThreshold = visibilityRatioThreshold
         self.durationThreshold = durationThreshold
+        
+        // If detection interval is not provided it will be set a default value of 1/10 from the durationThreshold
+        self.detectionInterval = detectionInterval ?? (durationThreshold / 10)
+        
         startTimer()
     }
     
@@ -50,7 +56,7 @@ class ViewabilityManager: ViewabilityManaging {
 
 private extension ViewabilityManager {
     func startTimer() {
-        timer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(timeInterval: detectionInterval, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
         
         if let timer {
             RunLoop.current.add(timer, forMode: RunLoopMode.commonModes)
