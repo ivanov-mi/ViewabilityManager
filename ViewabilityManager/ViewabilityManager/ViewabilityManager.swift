@@ -22,7 +22,7 @@ struct TrackedItem {
 class ViewabilityManager: ViewabilityManaging {
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
-    private let visibilityRatioThreshold: CGFloat
+    private let visibilityRatioThreshold: Double
     private let durationThreshold: TimeInterval
     private let detectionInterval: Double
     
@@ -36,7 +36,7 @@ class ViewabilityManager: ViewabilityManaging {
         }
     }
     
-    init(visibilityRatioThreshold: CGFloat = 0.5,
+    init(visibilityRatioThreshold: Double = 0.5,
          durationThreshold: TimeInterval = 10.0,
          detectionInterval: Double? = nil) {
         self.visibilityRatioThreshold = visibilityRatioThreshold
