@@ -43,6 +43,7 @@ class ViewabilityManager: ViewabilityManaging {
    
    deinit {
        timer?.invalidate()
+       timer = nil
    }
 }
 
