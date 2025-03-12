@@ -12,6 +12,12 @@ protocol ViewabilityManaging {
     func stopViewabilityTracking(of view: UIView)
 }
 
+enum ViewabilityDefaults {
+    static let visibilityRatioThreshold = 0.5
+    static let durationThreshold: TimeInterval = 1.0
+    static let detectionIntervalToDurationThresholdRatio = 0.1
+}
+
 struct TrackedItem {
     let view: () -> UIView?
     var currentImpressionStart: Date?
@@ -36,14 +42,14 @@ class ViewabilityManager: ViewabilityManaging {
         }
     }
     
-    init(visibilityRatioThreshold: Double = 0.5,
-         durationThreshold: TimeInterval = 10.0,
+    init(visibilityRatioThreshold: Double = ViewabilityDefaults.visibilityRatioThreshold,
+         durationThreshold: TimeInterval = ViewabilityDefaults.durationThreshold,
          detectionInterval: Double? = nil) {
         self.visibilityRatioThreshold = visibilityRatioThreshold
         self.durationThreshold = durationThreshold
         
         // If detection interval is not provided it will be set a default value of 1/10 from the durationThreshold
-        self.detectionInterval = detectionInterval ?? (durationThreshold / 10)
+        self.detectionInterval = detectionInterval ?? (durationThreshold * ViewabilityDefaults.detectionIntervalToDurationThresholdRatio)
         
         startTimer()
     }
