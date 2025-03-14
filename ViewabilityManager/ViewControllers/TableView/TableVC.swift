@@ -46,10 +46,10 @@ class TableVC: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: "SimpleTableViewCell", for: indexPath) as! SimpleTableViewCell
         
         // Remove the cell from tracking when it is reused
-        stopViewabilityTracking(of: cell, using: viewabilityManager)
+        viewabilityManager.stopTracking(of: cell)
         
         // Configure the cell and track its viewability
-        startViewabilityTracking(of: cell, using: viewabilityManager) { [weak self] in
+        viewabilityManager.startTracking(of: cell) { [weak self] in
             guard let self = self else { return }
             
             // Add custom logic

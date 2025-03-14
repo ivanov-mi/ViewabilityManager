@@ -104,7 +104,7 @@ private extension BasicViewController {
     func startTrackigViewability() {
         for index in trackedViews.indices {
             let view = trackedViews[index]
-            startViewabilityTracking(of: view, using: viewabilityManager) {
+            viewabilityManager.startTracking(of: view) {
                 view.backgroundColor = .green
                 print("TestView \(index) met viewability criteria.")
             }

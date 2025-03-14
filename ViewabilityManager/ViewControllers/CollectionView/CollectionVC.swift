@@ -56,10 +56,10 @@ class CollectionVC: UICollectionViewController {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SimpleCollectionViewCell", for: indexPath) as! SimpleCollectionViewCell
         
         // Remove the cell from tracking when it is reused
-        stopViewabilityTracking(of: cell, using: viewabilityManager)
+        viewabilityManager.stopTracking(of: cell)
         
         // Configure the cell and track its viewability
-        startViewabilityTracking(of: cell, using: viewabilityManager) { [weak self] in
+        viewabilityManager.startTracking(of: cell) { [weak self] in
             guard let self = self else { return }
             
             // Add custom logic
