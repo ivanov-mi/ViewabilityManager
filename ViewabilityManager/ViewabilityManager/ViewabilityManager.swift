@@ -13,9 +13,9 @@ protocol ViewabilityManaging {
 }
 
 enum ViewabilityDefaults {
-    static let visibilityRatioThreshold = 0.5
+    static let areaRatioThreshold = 0.5
     static let durationThreshold: TimeInterval = 1.0
-    static let detectionIntervalToDurationThresholdRatio = 0.5
+    static let numberOfDetectionsPerDuration = 10.0
     static let alphaThreshold: Double = 0.5
 }
 
@@ -29,7 +29,7 @@ struct TrackedItem {
 class ViewabilityManager: ViewabilityManaging {
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
-    private let visibilityRatioThreshold: Double
+    private let areaRatioThreshold: Double
     private let durationThreshold: TimeInterval
     private let detectionInterval: Double
     private let alphaThreshold: Double
@@ -44,16 +44,16 @@ class ViewabilityManager: ViewabilityManaging {
         }
     }
     
-    init(visibilityRatioThreshold: Double = ViewabilityDefaults.visibilityRatioThreshold,
+    init(areaRatioThreshold: Double = ViewabilityDefaults.areaRatioThreshold,
          durationThreshold: TimeInterval = ViewabilityDefaults.durationThreshold,
          alphaThreshold: Double = ViewabilityDefaults.alphaThreshold,
          detectionInterval: Double? = nil) {
-        self.visibilityRatioThreshold = visibilityRatioThreshold
+        self.areaRatioThreshold = areaRatioThreshold
         self.durationThreshold = durationThreshold
         self.alphaThreshold = alphaThreshold
         
-        // If detection interval is not provided it will be set a default value of 1/10 from the durationThreshold
-        self.detectionInterval = detectionInterval ?? (durationThreshold * ViewabilityDefaults.detectionIntervalToDurationThresholdRatio)
+        // If detection interval is not provided it will be set a based on the default numberOfDetectionsPerDuration value
+        self.detectionInterval = detectionInterval ?? (durationThreshold / ViewabilityDefaults.numberOfDetectionsPerDuration)
         
         startTimer()
     }
@@ -122,11 +122,11 @@ private extension ViewabilityManager {
         if let scrollView = view.superview as? UIScrollView {
             let viewFrame = view.convert(view.bounds, to: scrollView)
             let visibleRect = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size)
-            return isVisibilityRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
+            return isAreaRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
         } else if let window = view.window {
             let viewFrame = view.convert(view.bounds, to: window)
             let visibleRect = window.bounds
-            return isVisibilityRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
+            return isAreaRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
         }
         
         return false
@@ -146,11 +146,11 @@ private extension ViewabilityManager {
         return true
     }
     
-    func isVisibilityRatioSatisfied(viewFrame: CGRect, within visibleRect: CGRect) -> Bool {
+    func isAreaRatioSatisfied(viewFrame: CGRect, within visibleRect: CGRect) -> Bool {
         let intersection = visibleRect.intersection(viewFrame)
         let visibleArea = intersection.width * intersection.height
         let totalArea = viewFrame.width * viewFrame.height
-        return (visibleArea / totalArea) >= visibilityRatioThreshold
+        return (visibleArea / totalArea) >= areaRatioThreshold
     }
     
     func checkDuration(for id: UUID, at now: Date) {
