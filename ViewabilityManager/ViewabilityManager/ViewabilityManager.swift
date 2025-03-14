@@ -99,7 +99,7 @@ private extension ViewabilityManager {
                 continue
             }
             
-            if isTrackedItemVisible(id) {
+            if isTrackedViewVisible(view) {
                 checkDuration(for: id, at: now)
             } else {
                 // Set currentImpressionStart to nil if the view is not visible
@@ -108,14 +108,8 @@ private extension ViewabilityManager {
         }
     }
     
-    func isTrackedItemVisible(_ id: UUID) -> Bool {
-        guard var trackedItem = trackedItems[id],
-                let view = trackedItem.view() else {
-            return false
-        }
-        
-        if !isViewHierarchyVisibleWithAlpha(view) {
-            trackedItem.currentImpressionStart = nil
+    func isTrackedViewVisible(_ view: UIView) -> Bool {
+        guard isViewHierarchyVisibleWithAlpha(view) else {
             return false
         }
         
