@@ -158,7 +158,12 @@ private extension ViewabilityManager {
         let totalArea = view.frame.width * view.frame.height
         let visibleRatio = visibleArea / totalArea
         
-        return visibleRatio >= config.areaRatioThreshold
+        // Define a 1% margin to the required ratio to account for floating-point precision issues
+        let thresholdMargin = 0.01
+        
+        // Check if the visible ratio meets threshold within the margin
+        let isVisible = visibleRatio >= config.areaRatioThreshold || abs(visibleRatio - config.areaRatioThreshold) <= thresholdMargin
+        return isVisible
     }
     
     // Checks if a view has been visible for the required duration
