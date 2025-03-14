@@ -8,24 +8,24 @@
 import UIKit
 
 protocol ViewabilityManaging {
-    func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void)
-    func stopViewabilityTracking(of view: UIView)
+    func startTracking(of view: UIView, onSuccess: @escaping () -> Void)
+    func stopTracking(of view: UIView)
 }
 
 struct TrackedItem {
-    let view: () -> UIView?
-    var currentImpressionStart: Date?
-    let successfulImpressionCallback: () -> Void
-    var impressionSuccessfullyCompleted: Bool = false
+    let viewProvider: () -> UIView?
+    var impressionStartTime: Date?
+    let onSuccessCallback: () -> Void
+    var hasCompletedImpression: Bool = false
 }
 
 class ViewabilityManager: ViewabilityManaging {
-    private let configuration: ViewabilityConfiguration
+    private let config: ViewabilityConfiguration
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
     
     // Starts tracking a view's visibility
-    func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
+    func startTracking(of view: UIView, onSuccess: @escaping () -> Void) {
         addTrackedItem(for: view, onSuccess: onSuccess)
     }
     
@@ -37,15 +37,15 @@ class ViewabilityManager: ViewabilityManaging {
      3. or your custom implementation methods.
      Non-calling may cause abnormal impression.
      */
-    func stopViewabilityTracking(of view: UIView) {
-        if let id = trackedItems.first(where: { $0.value.view() == view })?.key {
+    func stopTracking(of view: UIView) {
+        if let id = trackedItems.first(where: { $0.value.viewProvider() == view })?.key {
             removeTrackedItem(id)
         }
     }
     
     init(configuration: ViewabilityConfiguration = .default) {
-        self.configuration = configuration
-        startTimer()
+        self.config = configuration
+        initializeTimer()
     }
     
     // Cleans up the timer and its reference on deinitialization
@@ -57,8 +57,8 @@ class ViewabilityManager: ViewabilityManaging {
 
 private extension ViewabilityManager {
     // Starts the timer for periodic visibility checks
-    func startTimer() {
-        timer = Timer.scheduledTimer(timeInterval: configuration.detectionInterval, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
+    func initializeTimer() {
+        timer = Timer.scheduledTimer(timeInterval: config.detectionInterval, target: self, selector: #selector(checkVisibility), userInfo: nil, repeats: true)
         
         if let timer {
             RunLoop.current.add(timer, forMode: RunLoopMode.commonModes)
@@ -67,13 +67,13 @@ private extension ViewabilityManager {
     
     // Adds a view to the tracking list
     func addTrackedItem(for view: UIView, onSuccess: @escaping () -> Void) {
-        guard !trackedItems.contains(where: { $0.value.view() === view }) else {
+        guard !trackedItems.contains(where: { $0.value.viewProvider() === view }) else {
             return
         }
         
         let id = UUID()
-        let viewClosure = { [weak view] in view }
-        trackedItems[id] = TrackedItem(view: viewClosure, currentImpressionStart: nil, successfulImpressionCallback: onSuccess)
+        let viewProvider = { [weak view] in view }
+        trackedItems[id] = TrackedItem(viewProvider: viewProvider, impressionStartTime: nil, onSuccessCallback: onSuccess)
     }
     
     // Removes a view from the tracking list
@@ -82,33 +82,33 @@ private extension ViewabilityManager {
     }
     
     // Checks visibility of tracked views
-    @objc func checkViewability() {
+    @objc func checkVisibility() {
         let now = Date()
-        for (id, trackedItem) in trackedItems {
-            guard let view = trackedItem.view(), view.window != nil else {
+        for (id, item) in trackedItems {
+            guard let view = item.viewProvider(), view.window != nil else {
                 removeTrackedItem(id)
                 continue
             }
             
-            guard !trackedItem.impressionSuccessfullyCompleted else {
+            guard !item.hasCompletedImpression else {
                 continue
             }
             
-            if isTrackedViewVisible(view) {
-                checkDuration(for: id, at: now)
+            if isViewVisible(view) {
+                verifyImpressionDuration(for: id, at: now)
             } else {
                 // Set currentImpressionStart to nil if the view is not visible
-                trackedItems[id]?.currentImpressionStart = nil
+                trackedItems[id]?.impressionStartTime = nil
             }
         }
     }
     
-    // Determines if a view is visible based on hierarchy and settings
-    func isTrackedViewVisible(_ view: UIView) -> Bool {
-        // Ensure the view is part of a window, not hidden, and has sufficient alpha
+    // Determines if a view is visible
+    func isViewVisible(_ view: UIView) -> Bool {
+        // Ensure the view is part of a window, not hidden and has sufficient alpha
         guard let window = view.window,
-              view.isHidden == false,
-              view.alpha >= configuration.alphaThreshold else {
+              !view.isHidden,
+              view.alpha >= config.alphaThreshold else {
             return false
         }
         
@@ -119,7 +119,7 @@ private extension ViewabilityManager {
         while let superview = currentView.superview {
             // Check if the superview is visible and has sufficient alpha
             guard !superview.isHidden,
-                  superview.alpha >= configuration.alphaThreshold else {
+                  superview.alpha >= config.alphaThreshold else {
                 return false
             }
             
@@ -148,7 +148,7 @@ private extension ViewabilityManager {
                                         height: frameInWindow.height)
         
         // Apply insets to the screen bounds to adjust the visible area
-        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, configuration.trackedScreenInsets)
+        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, config.trackedScreenInsets)
         let visibleRect = frameInScreen.intersection(adjustedScreenBounds)
         
         // Calculate the ratio of the visible area to the total area
@@ -156,33 +156,33 @@ private extension ViewabilityManager {
         let totalArea = view.frame.width * view.frame.height
         let visibleRatio = visibleArea / totalArea
         
-        return visibleRatio >= configuration.areaRatioThreshold
+        return visibleRatio >= config.areaRatioThreshold
     }
     
     // Checks if a view has been visible for the required duration
-    func checkDuration(for id: UUID, at now: Date) {
+    func verifyImpressionDuration(for id: UUID, at now: Date) {
         // Initialize currentImpressionStart if it's nil
-        if trackedItems[id]?.currentImpressionStart == nil {
-            trackedItems[id]?.currentImpressionStart = now
+        if trackedItems[id]?.impressionStartTime == nil {
+            trackedItems[id]?.impressionStartTime = now
         }
         
-        if let currentImpressionStart = trackedItems[id]?.currentImpressionStart {
-            let visibilityDuration = now.timeIntervalSince(currentImpressionStart)
-            if visibilityDuration >= configuration.durationThreshold && !(trackedItems[id]?.impressionSuccessfullyCompleted ?? true) {
-                trackedItemSuccessfulImpression(id)
+        if let startTime = trackedItems[id]?.impressionStartTime {
+            let duration = now.timeIntervalSince(startTime)
+            if duration >= config.durationThreshold && !(trackedItems[id]?.hasCompletedImpression ?? true) {
+                completeImpression(id)
             }
         }
     }
     
     // Marks a view as having completed a successful impression
-    func trackedItemSuccessfulImpression(_ id: UUID) {
-        guard var trackedItem = trackedItems[id] else {
+    func completeImpression(_ id: UUID) {
+        guard var item = trackedItems[id] else {
             return
         }
         
-        trackedItem.successfulImpressionCallback()
-        trackedItem.impressionSuccessfullyCompleted = true
-        trackedItem.currentImpressionStart = nil
-        trackedItems[id] = trackedItem
+        item.onSuccessCallback()
+        item.hasCompletedImpression = true
+        item.impressionStartTime = nil
+        trackedItems[id] = item
     }
 }

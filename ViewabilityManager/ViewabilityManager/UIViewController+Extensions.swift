@@ -10,10 +10,10 @@ import UIKit
 extension UIViewController {
     
     func startViewabilityTracking(of view: UIView, using manager: ViewabilityManaging, onSuccess: @escaping () -> Void) {
-        manager.startViewabilityTracking(of: view, onSuccess: onSuccess)
+        manager.startTracking(of: view, onSuccess: onSuccess)
     }
     
     func stopViewabilityTracking(of view: UIView, using manager: ViewabilityManaging) {
-        manager.stopViewabilityTracking(of: view)
+        manager.stopTracking(of: view)
     }
 }
