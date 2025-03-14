@@ -12,14 +12,6 @@ protocol ViewabilityManaging {
     func stopViewabilityTracking(of view: UIView)
 }
 
-enum ViewabilityDefaults {
-    static let areaRatioThreshold = 0.5
-    static let durationThreshold: TimeInterval = 1.0
-    static let numberOfDetectionsPerDuration = 10.0
-    static let alphaThreshold: Double = 0.5
-    static let trackedScreenInsets: UIEdgeInsets = .zero
-}
-
 struct TrackedItem {
     let view: () -> UIView?
     var currentImpressionStart: Date?
@@ -28,13 +20,9 @@ struct TrackedItem {
 }
 
 class ViewabilityManager: ViewabilityManaging {
+    private let configuration: ViewabilityConfiguration
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
-    private let areaRatioThreshold: Double
-    private let durationThreshold: TimeInterval
-    private let detectionInterval: Double
-    private let alphaThreshold: Double
-    private let trackedScreenInsets: UIEdgeInsets
     
     // Starts tracking a view's visibility
     func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
@@ -55,20 +43,8 @@ class ViewabilityManager: ViewabilityManaging {
         }
     }
     
-    init(areaRatioThreshold: Double = ViewabilityDefaults.areaRatioThreshold,
-         durationThreshold: TimeInterval = ViewabilityDefaults.durationThreshold,
-         alphaThreshold: Double = ViewabilityDefaults.alphaThreshold,
-         detectionInterval: Double? = nil,
-         trackedScreenInsets: UIEdgeInsets = ViewabilityDefaults.trackedScreenInsets) {
-        self.areaRatioThreshold = areaRatioThreshold
-        self.durationThreshold = durationThreshold
-        self.alphaThreshold = alphaThreshold
-        
-        // Calculate detection interval if not provided
-        /// To optimise performance the default value is 1/10 of the durationThreshold
-        self.detectionInterval = detectionInterval ?? (durationThreshold / ViewabilityDefaults.numberOfDetectionsPerDuration)
-        self.trackedScreenInsets = trackedScreenInsets
-        
+    init(configuration: ViewabilityConfiguration = .default) {
+        self.configuration = configuration
         startTimer()
     }
     
@@ -82,7 +58,7 @@ class ViewabilityManager: ViewabilityManaging {
 private extension ViewabilityManager {
     // Starts the timer for periodic visibility checks
     func startTimer() {
-        timer = Timer.scheduledTimer(timeInterval: detectionInterval, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
+        timer = Timer.scheduledTimer(timeInterval: configuration.detectionInterval, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
         
         if let timer {
             RunLoop.current.add(timer, forMode: RunLoopMode.commonModes)
@@ -132,7 +108,7 @@ private extension ViewabilityManager {
         // Ensure the view is part of a window, not hidden, and has sufficient alpha
         guard let window = view.window,
               view.isHidden == false,
-              view.alpha >= alphaThreshold else {
+              view.alpha >= configuration.alphaThreshold else {
             return false
         }
         
@@ -143,7 +119,7 @@ private extension ViewabilityManager {
         while let superview = currentView.superview {
             // Check if the superview is visible and has sufficient alpha
             guard !superview.isHidden,
-                  superview.alpha >= alphaThreshold else {
+                  superview.alpha >= configuration.alphaThreshold else {
                 return false
             }
             
@@ -172,7 +148,7 @@ private extension ViewabilityManager {
                                         height: frameInWindow.height)
         
         // Apply insets to the screen bounds to adjust the visible area
-        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, trackedScreenInsets)
+        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, configuration.trackedScreenInsets)
         let visibleRect = frameInScreen.intersection(adjustedScreenBounds)
         
         // Calculate the ratio of the visible area to the total area
@@ -180,7 +156,7 @@ private extension ViewabilityManager {
         let totalArea = view.frame.width * view.frame.height
         let visibleRatio = visibleArea / totalArea
         
-        return visibleRatio >= areaRatioThreshold
+        return visibleRatio >= configuration.areaRatioThreshold
     }
     
     // Checks if a view has been visible for the required duration
@@ -192,7 +168,7 @@ private extension ViewabilityManager {
         
         if let currentImpressionStart = trackedItems[id]?.currentImpressionStart {
             let visibilityDuration = now.timeIntervalSince(currentImpressionStart)
-            if visibilityDuration >= durationThreshold && !(trackedItems[id]?.impressionSuccessfullyCompleted ?? true) {
+            if visibilityDuration >= configuration.durationThreshold && !(trackedItems[id]?.impressionSuccessfullyCompleted ?? true) {
                 trackedItemSuccessfulImpression(id)
             }
         }
