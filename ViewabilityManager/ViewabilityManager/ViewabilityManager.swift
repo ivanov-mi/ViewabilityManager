@@ -36,10 +36,19 @@ class ViewabilityManager: ViewabilityManaging {
     private let alphaThreshold: Double
     private let trackedScreenInsets: UIEdgeInsets
     
+    // Starts tracking a view's visibility
     func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
         addTrackedItem(for: view, onSuccess: onSuccess)
     }
     
+    // Stops tracking a view's visibility
+    /**
+     This method must be called every time in
+     1. UICollectionView: `func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell`
+     2. UITableView: `func cellForRow(at indexPath: IndexPath) -> UITableViewCell?`
+     3. or your custom implementation methods.
+     Non-calling may cause abnormal impression.
+     */
     func stopViewabilityTracking(of view: UIView) {
         if let id = trackedItems.first(where: { $0.value.view() == view })?.key {
             removeTrackedItem(id)
@@ -55,13 +64,15 @@ class ViewabilityManager: ViewabilityManaging {
         self.durationThreshold = durationThreshold
         self.alphaThreshold = alphaThreshold
         
-        // If detection interval is not provided it will be set a based on the default numberOfDetectionsPerDuration value
+        // Calculate detection interval if not provided
+        /// To optimise performance the default value is 1/10 of the durationThreshold
         self.detectionInterval = detectionInterval ?? (durationThreshold / ViewabilityDefaults.numberOfDetectionsPerDuration)
         self.trackedScreenInsets = trackedScreenInsets
         
         startTimer()
     }
     
+    // Cleans up the timer and its reference on deinitialization
     deinit {
         timer?.invalidate()
         timer = nil
@@ -69,6 +80,7 @@ class ViewabilityManager: ViewabilityManaging {
 }
 
 private extension ViewabilityManager {
+    // Starts the timer for periodic visibility checks
     func startTimer() {
         timer = Timer.scheduledTimer(timeInterval: detectionInterval, target: self, selector: #selector(checkViewability), userInfo: nil, repeats: true)
         
@@ -77,6 +89,7 @@ private extension ViewabilityManager {
         }
     }
     
+    // Adds a view to the tracking list
     func addTrackedItem(for view: UIView, onSuccess: @escaping () -> Void) {
         guard !trackedItems.contains(where: { $0.value.view() === view }) else {
             return
@@ -87,10 +100,12 @@ private extension ViewabilityManager {
         trackedItems[id] = TrackedItem(view: viewClosure, currentImpressionStart: nil, successfulImpressionCallback: onSuccess)
     }
     
+    // Removes a view from the tracking list
     func removeTrackedItem(_ id: UUID) {
         trackedItems.removeValue(forKey: id)
     }
     
+    // Checks visibility of tracked views
     @objc func checkViewability() {
         let now = Date()
         for (id, trackedItem) in trackedItems {
@@ -112,7 +127,9 @@ private extension ViewabilityManager {
         }
     }
     
+    // Determines if a view is visible based on hierarchy and settings
     func isTrackedViewVisible(_ view: UIView) -> Bool {
+        // Ensure the view is part of a window, not hidden, and has sufficient alpha
         guard let window = view.window,
               view.isHidden == false,
               view.alpha >= alphaThreshold else {
@@ -122,33 +139,43 @@ private extension ViewabilityManager {
         var currentView = view
         var frameInSuperview = view.bounds
         
+        // Traverse up the view hierarchy
         while let superview = currentView.superview {
+            // Check if the superview is visible and has sufficient alpha
             guard !superview.isHidden,
                   superview.alpha >= alphaThreshold else {
                 return false
             }
             
+            // Convert the view's frame to the superview's coordinate system
             frameInSuperview = currentView.convert(frameInSuperview, to: superview)
+            
+            // If the superview clips its bounds, intersect the frame with the superview's bounds
             if currentView.clipsToBounds {
                 frameInSuperview = frameInSuperview.intersection(currentView.frame)
             }
             
+            // If the frame is empty, the view is not visible
             guard !frameInSuperview.isEmpty else {
                 return false
             }
             
+            // Move up to the next superview
             currentView = superview
         }
         
+        // Convert the final frame to the screen's coordinate system
         let frameInWindow = frameInSuperview
         let frameInScreen = CGRect.init(x: frameInWindow.origin.x + window.frame.origin.x,
                                         y: frameInWindow.origin.y + window.frame.origin.y,
                                         width: frameInWindow.width,
                                         height: frameInWindow.height)
         
+        // Apply insets to the screen bounds to adjust the visible area
         let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, trackedScreenInsets)
         let visibleRect = frameInScreen.intersection(adjustedScreenBounds)
         
+        // Calculate the ratio of the visible area to the total area
         let visibleArea = visibleRect.width * visibleRect.height
         let totalArea = view.frame.width * view.frame.height
         let visibleRatio = visibleArea / totalArea
@@ -156,27 +183,7 @@ private extension ViewabilityManager {
         return visibleRatio >= areaRatioThreshold
     }
     
-    func isViewHierarchyVisibleWithAlpha(_ view: UIView) -> Bool {
-        var currentView: UIView? = view
-        
-        while let viewToCheck = currentView {
-            if viewToCheck.isHidden || viewToCheck.alpha < alphaThreshold {
-                return false
-            }
-            
-            currentView = viewToCheck.superview
-        }
-        
-        return true
-    }
-    
-    func isAreaRatioSatisfied(viewFrame: CGRect, within visibleRect: CGRect) -> Bool {
-        let intersection = visibleRect.intersection(viewFrame)
-        let visibleArea = intersection.width * intersection.height
-        let totalArea = viewFrame.width * viewFrame.height
-        return (visibleArea / totalArea) >= areaRatioThreshold
-    }
-    
+    // Checks if a view has been visible for the required duration
     func checkDuration(for id: UUID, at now: Date) {
         // Initialize currentImpressionStart if it's nil
         if trackedItems[id]?.currentImpressionStart == nil {
@@ -191,6 +198,7 @@ private extension ViewabilityManager {
         }
     }
     
+    // Marks a view as having completed a successful impression
     func trackedItemSuccessfulImpression(_ id: UUID) {
         guard var trackedItem = trackedItems[id] else {
             return
