@@ -17,6 +17,7 @@ enum ViewabilityDefaults {
     static let durationThreshold: TimeInterval = 1.0
     static let numberOfDetectionsPerDuration = 10.0
     static let alphaThreshold: Double = 0.5
+    static let trackedScreenInsets: UIEdgeInsets = .zero
 }
 
 struct TrackedItem {
@@ -33,6 +34,7 @@ class ViewabilityManager: ViewabilityManaging {
     private let durationThreshold: TimeInterval
     private let detectionInterval: Double
     private let alphaThreshold: Double
+    private let trackedScreenInsets: UIEdgeInsets
     
     func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
         addTrackedItem(for: view, onSuccess: onSuccess)
@@ -47,13 +49,15 @@ class ViewabilityManager: ViewabilityManaging {
     init(areaRatioThreshold: Double = ViewabilityDefaults.areaRatioThreshold,
          durationThreshold: TimeInterval = ViewabilityDefaults.durationThreshold,
          alphaThreshold: Double = ViewabilityDefaults.alphaThreshold,
-         detectionInterval: Double? = nil) {
+         detectionInterval: Double? = nil,
+         trackedScreenInsets: UIEdgeInsets = ViewabilityDefaults.trackedScreenInsets) {
         self.areaRatioThreshold = areaRatioThreshold
         self.durationThreshold = durationThreshold
         self.alphaThreshold = alphaThreshold
         
         // If detection interval is not provided it will be set a based on the default numberOfDetectionsPerDuration value
         self.detectionInterval = detectionInterval ?? (durationThreshold / ViewabilityDefaults.numberOfDetectionsPerDuration)
+        self.trackedScreenInsets = trackedScreenInsets
         
         startTimer()
     }
@@ -109,21 +113,47 @@ private extension ViewabilityManager {
     }
     
     func isTrackedViewVisible(_ view: UIView) -> Bool {
-        guard isViewHierarchyVisibleWithAlpha(view) else {
+        guard let window = view.window,
+              view.isHidden == false,
+              view.alpha >= alphaThreshold else {
             return false
         }
         
-        if let scrollView = view.superview as? UIScrollView {
-            let viewFrame = view.convert(view.bounds, to: scrollView)
-            let visibleRect = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size)
-            return isAreaRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
-        } else if let window = view.window {
-            let viewFrame = view.convert(view.bounds, to: window)
-            let visibleRect = window.bounds
-            return isAreaRatioSatisfied(viewFrame: viewFrame, within: visibleRect)
+        var currentView = view
+        var frameInSuperview = view.bounds
+        
+        while let superview = currentView.superview {
+            guard !superview.isHidden,
+                  superview.alpha >= alphaThreshold else {
+                return false
+            }
+            
+            frameInSuperview = currentView.convert(frameInSuperview, to: superview)
+            if currentView.clipsToBounds {
+                frameInSuperview = frameInSuperview.intersection(currentView.frame)
+            }
+            
+            guard !frameInSuperview.isEmpty else {
+                return false
+            }
+            
+            currentView = superview
         }
         
-        return false
+        let frameInWindow = frameInSuperview
+        let frameInScreen = CGRect.init(x: frameInWindow.origin.x + window.frame.origin.x,
+                                        y: frameInWindow.origin.y + window.frame.origin.y,
+                                        width: frameInWindow.width,
+                                        height: frameInWindow.height)
+        
+        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, trackedScreenInsets)
+        let visibleRect = frameInScreen.intersection(adjustedScreenBounds)
+        
+        let visibleArea = visibleRect.width * visibleRect.height
+        let totalArea = view.frame.width * view.frame.height
+        let visibleRatio = visibleArea / totalArea
+        
+        return visibleRatio >= areaRatioThreshold
     }
     
     func isViewHierarchyVisibleWithAlpha(_ view: UIView) -> Bool {
