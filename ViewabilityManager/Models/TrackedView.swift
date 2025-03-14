@@ -7,7 +7,7 @@
 
 import UIKit
 
-struct Impression {
+struct TrackedView {
     let index: Int
     var impressionCompleted: Bool
     

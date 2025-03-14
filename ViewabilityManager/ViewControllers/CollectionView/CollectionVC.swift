@@ -11,8 +11,8 @@ class CollectionVC: UICollectionViewController {
     
     private let viewabilityManager: ViewabilityManaging
     
-    private lazy var impressions: [Impression] = {
-        (0..<25).map{ index in Impression(index: index, impressionCompleted: false)}
+    private lazy var trackedViews: [TrackedView] = {
+        (0..<25).map{ index in TrackedView(index: index, impressionCompleted: false)}
     }()
     
     init(layout: UICollectionViewFlowLayout) {
@@ -45,7 +45,7 @@ class CollectionVC: UICollectionViewController {
     }
     
     override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return impressions.count
+        return trackedViews.count
     }
     
     override func numberOfSections(in collectionView: UICollectionView) -> Int {
@@ -56,20 +56,29 @@ class CollectionVC: UICollectionViewController {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SimpleCollectionViewCell", for: indexPath) as! SimpleCollectionViewCell
         
         // Remove the cell from tracking when it is reused
+        /**
+         This method must be called every time in
+         1. UICollectionView: `func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell`
+         2. UITableView: `func cellForRow(at indexPath: IndexPath) -> UITableViewCell?`
+         3. or your custom implementation methods.
+         Non-calling may cause abnormal impression.
+         */
         viewabilityManager.stopTracking(of: cell)
         
-        // Configure the cell and track its viewability
+        // Start cell viewability tracking
         viewabilityManager.startTracking(of: cell) { [weak self] in
             guard let self = self else { return }
             
-            // Add custom logic
-            
-            impressions[indexPath.row].impressionCompleted = true
-            cell.backgroundColor = impressions[indexPath.row].backgroundColor
+            // Should add custom logic
+            /// Test logic for functionality preview purposes
+            trackedViews[indexPath.row].impressionCompleted = true
+            cell.backgroundColor = trackedViews[indexPath.row].backgroundColor
             print("Cell \(cell.infoLabel.text!) met viewability criteria.")
         }
         
-        let impression = impressions[indexPath.row]
+        // Should add custom logic
+        /// Test logic for functionality preview purposes
+        let impression = trackedViews[indexPath.row]
         cell.infoLabel.text = "\(impression.index)"
         cell.backgroundColor = impression.backgroundColor
         

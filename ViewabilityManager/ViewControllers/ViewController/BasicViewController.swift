@@ -68,6 +68,7 @@ private extension BasicViewController {
     func layoutTrackedViews() {
         trackedViews.forEach { view.addSubview($0) }
         
+        // Test data for functionality preview purposes
         NSLayoutConstraint.activate([
             // View 1 - Fully within the frame (more than 50% visibility)
             trackedViews[0].widthAnchor.constraint(equalToConstant: 150),
@@ -101,7 +102,10 @@ private extension BasicViewController {
         ])
     }
     
+    // Start cell viewability tracking
     func startTrackigViewability() {
+        // Should add custom logic
+        /// Test logic for functionality preview purposes
         for index in trackedViews.indices {
             let view = trackedViews[index]
             viewabilityManager.startTracking(of: view) {
