@@ -15,7 +15,8 @@ protocol ViewabilityManaging {
 enum ViewabilityDefaults {
     static let visibilityRatioThreshold = 0.5
     static let durationThreshold: TimeInterval = 1.0
-    static let detectionIntervalToDurationThresholdRatio = 0.1
+    static let detectionIntervalToDurationThresholdRatio = 0.5
+    static let alphaThreshold: Double = 0.5
 }
 
 struct TrackedItem {
@@ -31,6 +32,7 @@ class ViewabilityManager: ViewabilityManaging {
     private let visibilityRatioThreshold: Double
     private let durationThreshold: TimeInterval
     private let detectionInterval: Double
+    private let alphaThreshold: Double
     
     func startViewabilityTracking(of view: UIView, onSuccess: @escaping () -> Void) {
         addTrackedItem(for: view, onSuccess: onSuccess)
@@ -44,9 +46,11 @@ class ViewabilityManager: ViewabilityManaging {
     
     init(visibilityRatioThreshold: Double = ViewabilityDefaults.visibilityRatioThreshold,
          durationThreshold: TimeInterval = ViewabilityDefaults.durationThreshold,
+         alphaThreshold: Double = ViewabilityDefaults.alphaThreshold,
          detectionInterval: Double? = nil) {
         self.visibilityRatioThreshold = visibilityRatioThreshold
         self.durationThreshold = durationThreshold
+        self.alphaThreshold = alphaThreshold
         
         // If detection interval is not provided it will be set a default value of 1/10 from the durationThreshold
         self.detectionInterval = detectionInterval ?? (durationThreshold * ViewabilityDefaults.detectionIntervalToDurationThresholdRatio)
@@ -105,7 +109,13 @@ private extension ViewabilityManager {
     }
     
     func isTrackedItemVisible(_ id: UUID) -> Bool {
-        guard let trackedItem = trackedItems[id], let view = trackedItem.view() else {
+        guard var trackedItem = trackedItems[id],
+                let view = trackedItem.view() else {
+            return false
+        }
+        
+        if !isViewHierarchyVisibleWithAlpha(view) {
+            trackedItem.currentImpressionStart = nil
             return false
         }
         
@@ -120,6 +130,20 @@ private extension ViewabilityManager {
         }
         
         return false
+    }
+    
+    func isViewHierarchyVisibleWithAlpha(_ view: UIView) -> Bool {
+        var currentView: UIView? = view
+        
+        while let viewToCheck = currentView {
+            if viewToCheck.isHidden || viewToCheck.alpha < alphaThreshold {
+                return false
+            }
+            
+            currentView = viewToCheck.superview
+        }
+        
+        return true
     }
     
     func isVisibilityRatioSatisfied(viewFrame: CGRect, within visibleRect: CGRect) -> Bool {
