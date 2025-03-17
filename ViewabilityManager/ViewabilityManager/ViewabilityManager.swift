@@ -113,73 +113,95 @@ private extension ViewabilityManager {
               view.alpha >= config.alphaThreshold else {
             return false
         }
-        
-        var currentView = view
-        var frameInSuperview = view.bounds
-        
-        // Traverse up the view hierarchy
-        while let superview = currentView.superview {
-            // Check if the superview is visible and has sufficient alpha
-            guard !superview.isHidden,
-                  superview.alpha >= config.alphaThreshold else {
-                return false
-            }
-            
-            // Convert the view's frame to the superview's coordinate system
-            frameInSuperview = currentView.convert(frameInSuperview, to: superview)
-            
-            // If the superview clips its bounds, intersect the frame with the superview's bounds
-            if currentView.clipsToBounds {
-                frameInSuperview = frameInSuperview.intersection(currentView.frame)
-            }
-            
-            // If the frame is empty, the view is not visible
-            guard !frameInSuperview.isEmpty else {
-                return false
-            }
-            
-            // Move up to the next superview
-            currentView = superview
-        }
-        
-        // Convert the final tracked frame to the screen's coordinate system
-        let frameInWindow = frameInSuperview
-        var visibleRect = CGRect.init(x: frameInWindow.origin.x + window.frame.origin.x,
-                                        y: frameInWindow.origin.y + window.frame.origin.y,
-                                        width: frameInWindow.width,
-                                        height: frameInWindow.height)
-        
-        // If a tracking view is specified in the configuration, adjust the visible area
-        if let trackingView = config.trackingView,
-           let trackingViewWindow = trackingView.window,
-           trackingViewWindow == window {
-            let trackingViewInWindow = trackingView.convert(trackingView.bounds, to: window)
-            visibleRect = visibleRect.intersection(trackingViewInWindow)
-        }
-        
-        // Apply insets to the tracking view bounds to adjust the visible area
-        if config.trackingInsets != .zero {
-            let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, config.trackingInsets)
-            visibleRect = visibleRect.intersection(adjustedScreenBounds)
-        }
-        
-        guard !visibleRect.isNull else {
-            return false
-        }
-        
-        // Calculate the ratio of the visible area to the total area
-        let visibleArea = visibleRect.width * visibleRect.height
-        let totalArea = view.frame.width * view.frame.height
-        let visibleRatio = visibleArea / totalArea
-        
-        // Define a 1% margin to the required ratio to account for floating-point precision issues
-        let thresholdMargin = 0.01
-        
-        // Check if the visible ratio meets threshold within the margin
-        let isVisible = visibleRatio >= config.areaRatioThreshold || abs(visibleRatio - config.areaRatioThreshold) <= thresholdMargin
-        return isVisible
+       
+       var frameInSuperview = view.bounds
+       
+       // Traverse up the view hierarchy to check visibility
+       guard isViewHierarchyVisible(view: view, frameInSuperview: &frameInSuperview) else {
+           return false
+       }
+       
+       // Convert the final tracked frame to the screen's coordinate system
+       let visibleRect = calculateVisibleRect(frameInSuperview: frameInSuperview, window: window)
+       
+       // Check if the visible rectangle is valid
+       guard !visibleRect.isNull else {
+           return false
+       }
+       
+       // Calculate the visible ratio
+       return isVisibleRatioValid(visibleRect: visibleRect, view: view)
     }
-    
+
+    // Traverse the view hierarchy to check visibility
+    func isViewHierarchyVisible(view: UIView, frameInSuperview: inout CGRect) -> Bool {
+       var currentView = view
+       
+       // Traverse up the view hierarchy
+       while let superview = currentView.superview {
+           guard !superview.isHidden && superview.alpha >= config.alphaThreshold else {
+               return false
+           }
+           
+           // Convert the view's frame to the superview's coordinate system
+           frameInSuperview = currentView.convert(frameInSuperview, to: superview)
+           
+           // If the superview clips its bounds, intersect the frame with the superview's bounds
+           if currentView.clipsToBounds {
+               frameInSuperview = frameInSuperview.intersection(currentView.frame)
+           }
+           
+           // If the frame is empty, the view is not visible
+           guard !frameInSuperview.isEmpty else {
+               return false
+           }
+           
+           // Move up to the next superview
+           currentView = superview
+       }
+       
+       return true
+    }
+
+    // Calculate the visible rectangle in the window's coordinate system
+    func calculateVisibleRect(frameInSuperview: CGRect, window: UIWindow) -> CGRect {
+       var visibleRect = CGRect(
+           x: frameInSuperview.origin.x + window.frame.origin.x,
+           y: frameInSuperview.origin.y + window.frame.origin.y,
+           width: frameInSuperview.width,
+           height: frameInSuperview.height
+       )
+       
+       // If a tracking view is specified in the configuration, adjust the visible area
+       if let trackingView = config.trackingView,
+          let trackingViewWindow = trackingView.window,
+          trackingViewWindow == window {
+           let trackingViewInWindow = trackingView.convert(trackingView.bounds, to: window)
+           visibleRect = visibleRect.intersection(trackingViewInWindow)
+       }
+       
+       // In insets are specified apply them to the tracking view bounds to adjust the visible area
+       if config.trackingInsets != .zero {
+           let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, config.trackingInsets)
+           visibleRect = visibleRect.intersection(adjustedScreenBounds)
+       }
+       
+       return visibleRect
+    }
+
+    // Check if the visible ratio meets the required threshold
+    func isVisibleRatioValid(visibleRect: CGRect, view: UIView) -> Bool {
+       let visibleArea = visibleRect.width * visibleRect.height
+       let totalArea = view.frame.width * view.frame.height
+       let visibleRatio = visibleArea / totalArea
+       
+       // Define a 1% margin to the required ratio to account for floating-point precision issues
+       let thresholdMargin = 0.01
+       
+       // Check if the visible ratio meets threshold within the margin
+       return visibleRatio >= config.areaRatioThreshold || abs(visibleRatio - config.areaRatioThreshold) <= thresholdMargin
+    }
+
     // Checks if a view has been visible for the required duration
     func verifyImpressionDuration(for id: UUID, at now: Date) {
         // Initialize currentImpressionStart if it's nil
