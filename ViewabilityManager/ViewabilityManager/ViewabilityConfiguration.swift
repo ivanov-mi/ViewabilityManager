@@ -15,7 +15,8 @@ class ViewabilityConfiguration {
         static let durationThreshold = 1.0
         static let detectionInterval = 0.1
         static let alphaThreshold = 0.5
-        static let trackedScreenInsets: UIEdgeInsets = .zero
+        static let trackingView: UIView? = nil
+        static let trackingInsets: UIEdgeInsets = .zero
     }
     
     // Private storage for configuration parameters
@@ -23,7 +24,8 @@ class ViewabilityConfiguration {
     private var _durationThreshold: TimeInterval = Defaults.durationThreshold
     private var _detectionInterval: Double = Defaults.detectionInterval
     private var _alphaThreshold: Double = Defaults.alphaThreshold
-    private var _trackedScreenInsets: UIEdgeInsets = Defaults.trackedScreenInsets
+    private var _trackingView: UIView? = Defaults.trackingView
+    private var _trackingInsets: UIEdgeInsets = Defaults.trackingInsets
     
     // Value from 0 to 1. The view will be impressed if its area ratio remains equal to or greater than this value.
     var areaRatioThreshold: Double {
@@ -49,10 +51,16 @@ class ViewabilityConfiguration {
         set { _alphaThreshold = min(max(newValue, 0), 1) }
     }
     
-    // Insets to reduce the tracked area of the screen, e.g., to exclude area behind opaque navigation bars.
-    var trackedScreenInsets: UIEdgeInsets {
-        get { _trackedScreenInsets }
-        set { _trackedScreenInsets = newValue }
+    // The presenting UIView for which the tracking is done. If no value is set it will do tracking for the root view.
+    var trackingView: UIView? {
+        get { _trackingView }
+        set { _trackingView = newValue }
+    }
+    
+    // Insets to reduce the tracked area of the tracking view, e.g., to exclude area behind opaque navigation bars.
+    var trackingInsets: UIEdgeInsets {
+        get { _trackingInsets }
+        set { _trackingInsets = newValue }
     }
     
     // Default configuration values
@@ -61,7 +69,8 @@ class ViewabilityConfiguration {
         durationThreshold: Defaults.durationThreshold,
         detectionInterval: Defaults.detectionInterval,
         alphaThreshold: Defaults.alphaThreshold,
-        trackedScreenInsets: Defaults.trackedScreenInsets
+        trackingInsets: Defaults.trackingInsets,
+        trackingView: Defaults.trackingView
     )
     
     // Initializer
@@ -69,12 +78,14 @@ class ViewabilityConfiguration {
          durationThreshold: TimeInterval = Defaults.durationThreshold,
          detectionInterval: Double = Defaults.detectionInterval,
          alphaThreshold: Double = Defaults.alphaThreshold,
-         trackedScreenInsets: UIEdgeInsets = Defaults.trackedScreenInsets) {
+         trackingInsets: UIEdgeInsets = Defaults.trackingInsets,
+         trackingView: UIView? = Defaults.trackingView) {
         self.areaRatioThreshold = areaRatioThreshold
         self.durationThreshold = durationThreshold
         self.detectionInterval = detectionInterval
         self.alphaThreshold = alphaThreshold
-        self.trackedScreenInsets = trackedScreenInsets
+        self.trackingInsets = trackingInsets
+        self.trackingView = trackingView
     }
 }
 

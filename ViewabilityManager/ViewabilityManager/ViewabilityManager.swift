@@ -142,16 +142,30 @@ private extension ViewabilityManager {
             currentView = superview
         }
         
-        // Convert the final frame to the screen's coordinate system
+        // Convert the final tracked frame to the screen's coordinate system
         let frameInWindow = frameInSuperview
-        let frameInScreen = CGRect.init(x: frameInWindow.origin.x + window.frame.origin.x,
+        var visibleRect = CGRect.init(x: frameInWindow.origin.x + window.frame.origin.x,
                                         y: frameInWindow.origin.y + window.frame.origin.y,
                                         width: frameInWindow.width,
                                         height: frameInWindow.height)
         
-        // Apply insets to the screen bounds to adjust the visible area
-        let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, config.trackedScreenInsets)
-        let visibleRect = frameInScreen.intersection(adjustedScreenBounds)
+        // If a tracking view is specified in the configuration, adjust the visible area
+        if let trackingView = config.trackingView,
+           let trackingViewWindow = trackingView.window,
+           trackingViewWindow == window {
+            let trackingViewInWindow = trackingView.convert(trackingView.bounds, to: window)
+            visibleRect = visibleRect.intersection(trackingViewInWindow)
+        }
+        
+        // Apply insets to the tracking view bounds to adjust the visible area
+        if config.trackingInsets != .zero {
+            let adjustedScreenBounds = UIEdgeInsetsInsetRect(window.screen.bounds, config.trackingInsets)
+            visibleRect = visibleRect.intersection(adjustedScreenBounds)
+        }
+        
+        guard !visibleRect.isNull else {
+            return false
+        }
         
         // Calculate the ratio of the visible area to the total area
         let visibleArea = visibleRect.width * visibleRect.height
