@@ -22,9 +22,14 @@ struct TrackedItem {
 }
 
 class ViewabilityManager: ViewabilityManaging {
-    var config: ViewabilityConfiguration
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
+    
+    var config: ViewabilityConfiguration {
+        didSet {
+            configurationDidChange()
+        }
+    }
     
     // Starts tracking a view's visibility
     func startTracking(of view: UIView, onSuccess: @escaping () -> Void) {
@@ -47,7 +52,7 @@ class ViewabilityManager: ViewabilityManaging {
     
     init(configuration: ViewabilityConfiguration = .default) {
         self.config = configuration
-        initializeTimer()
+        initializeTimer(with: configuration.detectionInterval)
     }
     
     // Cleans up the timer and its reference on deinitialization
@@ -58,12 +63,30 @@ class ViewabilityManager: ViewabilityManaging {
 }
 
 private extension ViewabilityManager {
+    
     // Starts the timer for periodic visibility checks
-    func initializeTimer() {
-        timer = Timer.scheduledTimer(timeInterval: config.detectionInterval, target: self, selector: #selector(checkVisibility), userInfo: nil, repeats: true)
+    func initializeTimer(with timeInterval: TimeInterval) {
+        timer = Timer.scheduledTimer(timeInterval: timeInterval, target: self, selector: #selector(checkVisibility), userInfo: nil, repeats: true)
         
         if let timer {
             RunLoop.current.add(timer, forMode: RunLoopMode.commonModes)
+        }
+    }
+    
+    // Handle changes in ViewabilityManager configuration
+    func configurationDidChange() {
+        
+        // Invalidate the existing timer
+        timer?.invalidate()
+        
+        // Start a new timer with the updated configuration
+        initializeTimer(with: config.detectionInterval)
+        
+        // Update impression start times for views that are still being tracked
+        trackedItems.forEach { id, item in
+            if item.impressionStartTime != nil && !item.hasCompletedImpression {
+                trackedItems[id]?.impressionStartTime = .now
+            }
         }
     }
     
