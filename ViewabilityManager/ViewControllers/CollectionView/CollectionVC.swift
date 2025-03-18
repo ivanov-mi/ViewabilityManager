@@ -9,7 +9,7 @@ import UIKit
 
 class CollectionVC: UICollectionViewController {
     
-    private let viewabilityManager: ViewabilityManaging
+    private var viewabilityManager: ViewabilityManaging
     
     private lazy var trackedViews: [TrackedView] = {
         (0..<25).map{ index in TrackedView(index: index, impressionCompleted: false)}

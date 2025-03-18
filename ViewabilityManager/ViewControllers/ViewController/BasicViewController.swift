@@ -9,7 +9,7 @@ import UIKit
 
 class BasicViewController: UIViewController {
     
-    private let viewabilityManager: ViewabilityManaging
+    private var viewabilityManager: ViewabilityManaging
     private lazy var trackedViews: [UIView] = {
         return (0..<5).map { createView(withNumber: $0) }
     }()

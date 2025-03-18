@@ -9,7 +9,7 @@ import UIKit
 
 class TableVC: UITableViewController {
     
-    private let viewabilityManager: ViewabilityManaging
+    private var viewabilityManager: ViewabilityManaging
     
     private lazy var trackedViews: [TrackedView] = {
         (0..<100).map{ index in TrackedView(index: index, impressionCompleted: false)}

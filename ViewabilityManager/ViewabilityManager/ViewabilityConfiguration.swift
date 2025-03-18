@@ -7,7 +7,7 @@
 
 import UIKit
 
-class ViewabilityConfiguration {
+struct ViewabilityConfiguration {
     
     // Default values for configuration parameters
     enum Defaults {

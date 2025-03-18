@@ -8,7 +8,7 @@
 import UIKit
 
 protocol ViewabilityManaging {
-    var config: ViewabilityConfiguration { get }
+    var config: ViewabilityConfiguration { get set }
     
     func startTracking(of view: UIView, onSuccess: @escaping () -> Void)
     func stopTracking(of view: UIView)
@@ -22,7 +22,7 @@ struct TrackedItem {
 }
 
 class ViewabilityManager: ViewabilityManaging {
-    private(set) var config: ViewabilityConfiguration
+    var config: ViewabilityConfiguration
     private var trackedItems: [UUID: TrackedItem] = [:]
     private var timer: Timer?
     
