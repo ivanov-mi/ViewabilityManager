@@ -33,9 +33,7 @@ class TableVC: UITableViewController {
         tableView.dataSource = self
         tableView.allowsSelection = false
         
-        // Functionality preview logic - track only views that are presented in the tableView and not hidden from the status and navigation bars.
-        viewabilityManager.config.trackingView = tableView
-        viewabilityManager.config.trackingInsets = calculateNavigationbarInsets()
+        configureViewabilityManager()
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -81,6 +79,17 @@ class TableVC: UITableViewController {
 }
 
 private extension TableVC {
+    
+    // Functionality preview logic - track only views that are presented in the tableView and not hidden from the status and navigation bars.
+    func configureViewabilityManager() {
+        var config = ViewabilityConfiguration()
+        config.trackingView = tableView
+        config.trackingInsets = calculateNavigationbarInsets()
+        config.durationThreshold = 2
+        config.detectionInterval = 0.25
+        
+        viewabilityManager.config = config
+    }
     
     func calculateNavigationbarInsets() -> UIEdgeInsets {
         guard let navigationController = self.navigationController else {
