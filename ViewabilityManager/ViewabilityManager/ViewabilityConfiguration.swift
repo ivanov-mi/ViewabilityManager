@@ -51,13 +51,13 @@ struct ViewabilityConfiguration {
         set { _alphaThreshold = min(max(newValue, 0), 1) }
     }
     
-    // The presenting UIView for which the tracking is done. If no value is set it will do tracking for the root view.
+    // Container view for which the tracking is done. If no value is set the tracking will be done for the root view.
     var trackingView: UIView? {
         get { _trackingView }
         set { _trackingView = newValue }
     }
     
-    // Insets to reduce the tracked area of the tracking view, e.g., to exclude area behind opaque navigation bars.
+    // Insets to reduce the tracked area of the tracking view, e.g. to exclude area hidden behind opaque navigation bars.
     var trackingInsets: UIEdgeInsets {
         get { _trackingInsets }
         set { _trackingInsets = newValue }

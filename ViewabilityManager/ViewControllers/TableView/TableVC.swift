@@ -33,8 +33,9 @@ class TableVC: UITableViewController {
         tableView.dataSource = self
         tableView.allowsSelection = false
         
-// Functionality preview logic - reducing the vertical size of tracked screen to ignore the area under the navigation and status bars.
-        adjustTrackedScreenSizeToCompensateAreaUnderNavigationBar()
+        // Functionality preview logic - track only views that are presented in the tableView and not hidden from the status and navigation bars.
+        viewabilityManager.config.trackingView = tableView
+        viewabilityManager.config.trackingInsets = calculateNavigationbarInsets()
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -81,9 +82,9 @@ class TableVC: UITableViewController {
 
 private extension TableVC {
     
-    func adjustTrackedScreenSizeToCompensateAreaUnderNavigationBar() {
+    func calculateNavigationbarInsets() -> UIEdgeInsets {
         guard let navigationController = self.navigationController else {
-            return
+            return .zero
         }
         let navigationBarHeight = navigationController.navigationBar.frame.height
         
@@ -93,7 +94,6 @@ private extension TableVC {
         }
         
         let verticalOffset = navigationBarHeight + statusBarHeight
-        let insets = UIEdgeInsets(top: verticalOffset, left: 0, bottom: 0, right: 0)
-        viewabilityManager.config.trackedScreenInsets = insets
+        return UIEdgeInsets(top: verticalOffset, left: 0, bottom: 0, right: 0)
     }
 }
