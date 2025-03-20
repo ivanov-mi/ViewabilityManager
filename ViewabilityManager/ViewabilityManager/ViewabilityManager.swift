@@ -108,9 +108,19 @@ private extension ViewabilityManager {
     
     // Checks visibility of tracked views
     @objc func checkVisibility() {
+        
+        // Check if tracking view is visible and topmost
+        if let trackingView = config.trackingView {
+            guard let viewController = trackingView.getContainingViewController(),
+                  viewController.isVisibleAndTopmost else {
+                invalidateTrackedItems()
+                return
+            }
+        }
+        
         let now = Date()
         for (id, item) in trackedItems {
-            guard let view = item.viewProvider(), view.window != nil else {
+            guard let view = item.viewProvider() else {
                 removeTrackedItem(id)
                 continue
             }
@@ -128,12 +138,27 @@ private extension ViewabilityManager {
         }
     }
     
+    // Invalidate tracked items by resetting their impression start time
+    func invalidateTrackedItems() {
+        trackedItems.forEach { id, item in
+            if item.impressionStartTime != nil && !item.hasCompletedImpression {
+                trackedItems[id]?.impressionStartTime = nil
+            }
+        }
+    }
+    
     // Determines if a view is visible
     func isViewVisible(_ view: UIView) -> Bool {
         // Ensure the view is part of a window, not hidden and has sufficient alpha
         guard let window = view.window,
               !view.isHidden,
               view.alpha >= config.alphaThreshold else {
+            return false
+        }
+        
+        // Check if the view's view controller is visible and topmost
+        guard let viewController = view.getContainingViewController(),
+                viewController.isVisibleAndTopmost else {
             return false
         }
        
