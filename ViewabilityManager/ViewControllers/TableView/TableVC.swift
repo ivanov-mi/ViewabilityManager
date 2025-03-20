@@ -88,7 +88,7 @@ private extension TableVC {
     // Functionality preview logic - track only views that are presented in the tableView and not hidden from the status and navigation bars.
     func configureViewabilityManager() {
         var config = ViewabilityConfiguration()
-        config.trackingView = tableView
+        config.trackingContainerView = tableView
         config.trackingInsets = calculateNavigationbarInsets()
         config.durationThreshold = 2
         config.detectionInterval = 0.25
