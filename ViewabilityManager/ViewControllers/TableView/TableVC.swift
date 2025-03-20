@@ -31,7 +31,6 @@ class TableVC: UITableViewController {
         
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.allowsSelection = false
         
         configureViewabilityManager()
     }
@@ -75,6 +74,12 @@ class TableVC: UITableViewController {
         cell.backgroundColor = impression.backgroundColor
         
         return cell
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let detailsVC = DetailsViewController()
+        detailsVC.detailText = "Details for cell \(trackedViews[indexPath.row].index)"
+        navigationController?.pushViewController(detailsVC, animated: true)
     }
 }
 
